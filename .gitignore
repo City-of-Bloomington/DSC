@@ -1,0 +1,7 @@
+PackageSources/*
+DSCViaAD/LCMPullConfig/*
+DSCViaAD/mof/*
+DSCViaAD/config.psd1
+DSCViaAD/DSCWorkstationConfig.ps1
+DSCViaAD/DSCServerConfig.ps1
+DscService.lnk

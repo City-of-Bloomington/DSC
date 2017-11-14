@@ -1,0 +1,37 @@
+﻿
+$Config = Import-PowerShellDataFile $PSScriptRoot\config.psd1
+
+# quick function just to save some space
+Function RoleContains ([string]$Role)
+{
+    return $AllNodes.Where{$_.Roles -contains $Role}.NodeName
+}
+
+Configuration DSCWorkstationConfig 
+{
+
+    Import-DscResource –ModuleName 'PSDesiredStateConfiguration'
+
+    # ============================================================
+    # Role for common stuff that every workstation should have
+    # ============================================================
+    Node (RoleContains("DSC-CommonWindows"))
+    {
+        Package InstallSomething
+        {
+            Ensure    = 'Present'
+            Name      = 'some app'
+            Path      = 'path-to-msi'
+            ProductId = 'guid'
+        }
+
+        Service SomeService
+        {
+            Name      = 'some service'
+            State     = 'Running'
+            Ensure    = 'Present'
+            DependsOn = '[Package]InstallSomething'
+        }
+
+    }
+}

@@ -1,0 +1,7 @@
+﻿@{
+    DSCServer = "http://<PULLSERVERNAME>:8080/PSDSCPullServer.svc"
+    RegistrationKey = "<GUID>"
+
+    ServerSearchBase = "OU="
+    WorkstationSearchBase = "OU="
+}

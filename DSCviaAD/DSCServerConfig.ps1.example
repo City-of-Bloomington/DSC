@@ -1,0 +1,183 @@
+﻿
+$Config = Import-PowerShellDataFile $PSScriptroot\config.psd1
+
+# quick function just to save some space
+Function RoleContains ([string]$Role)
+{
+    return $AllNodes.Where{$_.Roles -contains $Role}.NodeName
+}
+
+Configuration DSCServerConfig 
+{
+
+    Import-DscResource –ModuleName 'PSDesiredStateConfiguration'
+    Import-DscResource -ModuleName xWindowsUpdate, xWebAdministration, xSQLServer, xCertificate
+    
+    # ===============================================
+    # Generic test resource, just copies a file over
+    # ===============================================
+    Node (RoleContains("DSC-TestGroup"))
+    {
+        File FileCopy 
+        {
+            Ensure          = "Present"  # You can also set Ensure to "Absent"
+            Type            = "File" # 
+            SourcePath      = "\\dsc\PackageSources\test.txt"
+            DestinationPath = "C:\TEMP\test.txt"    
+        }
+    }
+
+    # ============================================================
+    # Role for common stuff that every windows server should have
+    # ============================================================
+    Node (RoleContains("DSC-CommonWindows"))
+    {
+        Package InstallZabbixAgent
+        {
+            Ensure    = 'Present'
+            Name      = 'Zabbix Agent'
+            Path      = '\\dsc\PackageSources\ZabbixAgent\zabbix_agent-3.4.2_x64.msi'
+            ProductId = '27C3D9C8-545A-4A3C-8C20-E8BF4852C9E6'
+        }
+
+        Service ZabbixAgent
+        {
+            Name      = 'Zabbix Agent'
+            State     = 'Running'
+            Ensure    = 'Present'
+            DependsOn = '[Package]InstallZabbixAgent'
+        }
+
+    }
+
+    # ============================================================
+    # Role for IIS Webservers
+    # ============================================================
+    Node (RoleContains("DSC-IISWebServer"))
+    {
+        WindowsFeature IIS 
+        { 
+            Ensure = 'Present'
+            Name   = 'Web-Server'
+        }
+
+        WindowsFeature IISMgmt
+        {
+            Ensure = 'Present'
+            Name   = 'Web-Mgmt-Tools'
+        }
+
+        WindowsFeature ASP 
+        { 
+            Ensure = 'Present'
+            Name   = 'Web-Asp-Net45'
+        }
+
+        xPfxImport Wildcard
+        {
+            Thumbprint = $Config.WildcardThumbprint
+            Location   = 'LocalMachine'
+            Path       = $Config.WildcardPath
+            Credential = $WildcardPSCredential
+            Store      = 'WebHosting'
+            DependsOn  = '[WindowsFeature]IIS'
+            Ensure     = 'Present'
+        }
+
+        xWebsite DefaultSite
+        {
+            Ensure      = 'Present'
+            Name        = 'Default Web Site'
+            State       = 'Started'
+            DependsOn   = '[WindowsFeature]IIS', '[xPfxImport]Wildcard'
+            BindingInfo = @(
+                MSFT_xWebBindingInformation
+                {
+                    Protocol              = 'HTTPS'
+                    Port                  = 443
+                    CertificateThumbprint = $Config.WildcardThumbprint
+                    CertificateStoreName  = 'WebHosting'
+                }
+            )
+        }
+    }
+
+    # =========================
+    # Role for Windows Updates
+    # =========================
+    Node (RoleContains("DSC-KeepUpdated"))
+    {
+        xWindowsUpdateAgent KeepUpdated
+        {
+            IsSingleInstance = 'Yes'
+            UpdateNow        = $true
+            Source           = 'WindowsUpdate'
+            Notifications    = 'Disabled'
+        }
+    }
+
+    # =========================
+    # Role for SQL Server 2016
+    # =========================
+    Node (RoleContains("DSC-SQLServer2016"))
+    {
+        WindowsFeature 'NetFramework45'
+        {
+            Name   = 'NET-Framework-45-Core'
+            Ensure = 'Present'
+        }
+
+        xSQLServerSetup 'InstallDefaultInstance'
+        {
+            InstanceName        = 'MSSQLSERVER'
+            Features            = 'SQLENGINE'
+            SourcePath          = '\\dsc\PackageSources\SQL_Server_2016'
+            SQLSysAdminAccounts = @('COB\Domain Admins')
+            DependsOn           = '[WindowsFeature]NetFramework45'
+        }
+
+        Package 'SSMS'
+        {
+            Name      = 'SQL Server Management Studio 2016'
+            DependsOn = '[xSQLServerSetup]InstallDefaultInstance'
+            Ensure    = 'Present'
+            Path      = '\\dsc\PackageSources\SQL_Server_2016\SSMS-Setup-ENU.exe'
+            ProductId = '281BC3BA-FCB0-4056-B2B6-01D567D0D88C'  # SSMS 17.3
+            Arguments = "/install /quiet /norestart"
+
+        }
+    }
+
+    # =========================
+    # Role for SQL Server 2012
+    # =========================
+    Node (RoleContains("DSC-SQLServer2012"))
+    {
+        WindowsFeature 'NetFramework45'
+        {
+            Name   = 'NET-Framework-45-Core'
+            Ensure = 'Present'
+        }
+
+        xSQLServerSetup 'InstallDefaultInstance'
+        {
+            InstanceName        = 'MSSQLSERVER'
+            Features            = 'SQLENGINE'
+            SourcePath          = '\\dsc\PackageSources\SQL_Server_2012'
+            UpdateSource        = '\\dsc\PackageSources\SQL_Server_2012\Updates'
+            UpdateEnabled       = 'True'
+            SQLSysAdminAccounts = @('COB\Domain Admins')
+            DependsOn           = '[WindowsFeature]NetFramework45'
+        }
+
+        Package 'SSMS'
+        {
+            Name      = 'SQL Server Management Studio 2016'
+            DependsOn = '[xSQLServerSetup]InstallDefaultInstance'
+            Ensure    = 'Present'
+            Path      = '\\dsc\PackageSources\SQL_Server_2016\SSMS-Setup-ENU.exe'
+            ProductId = '281BC3BA-FCB0-4056-B2B6-01D567D0D88C'  # SSMS 17.3
+            Arguments = "/install /quiet /norestart"
+        }
+    } 
+}
