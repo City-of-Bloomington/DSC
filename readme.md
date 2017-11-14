@@ -32,7 +32,7 @@ The most important functions from the DSCviaAD module:
 [Separating configuration and environment data]: https://docs.microsoft.com/en-us/powershell/dsc/separatingenvdata
 [Get-ADComputer]: https://technet.microsoft.com/en-us/library/ee617192.aspx?f=255&MSPPError=-2147217396
 [Setting up a DSC web pull server]: https://docs.microsoft.com/en-us/powershell/dsc/pullserver
-[DSCServerConfig]: https://github.com/City-of-Bloomington/DSC/blob/master/DSCviaAD/DSCServerConfig.ps1
-[DSCWorkstationConfig]: https://github.com/City-of-Bloomington/DSC/blob/master/DSCviaAD/DSCWorkstationConfig.ps1
+[DSCServerConfig]: https://github.com/City-of-Bloomington/DSC/blob/master/DSCviaAD/DSCServerConfig.ps1.example
+[DSCWorkstationConfig]: https://github.com/City-of-Bloomington/DSC/blob/master/DSCviaAD/DSCWorkstationConfig.ps1.example
 [Write-Menu]: https://github.com/QuietusPlus/Write-Menu
 [DSCMenu.ps1]: https://github.com/City-of-Bloomington/DSC/blob/master/DSCMenu.ps1
