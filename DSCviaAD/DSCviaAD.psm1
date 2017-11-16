@@ -1,5 +1,8 @@
-﻿Function Configure-LCMRemotely ($ComputerName)
+﻿$Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
+
+Function Configure-LCMRemotely ($ComputerName)
 {
+    $Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
     $ProgressPreference = ’SilentlyContinue’ # stop the annoying progress bar
     Import-Module $PSScriptRoot\LCM_PullConfig.ps1 -force
     Set-Location $PSScriptRoot
@@ -24,41 +27,43 @@
 
 Function Add-ConfigurationsToPullServer
 {
-    $productionPath = "C:\Program Files\WindowsPowerShell\DscService\Configuration"
-    $stagingPath = "$PSScriptRoot\mof"
-
-    Copy-Item -Path "$stagingPath\Servers\*" -Destination $productionPath -Force -Verbose
-    Copy-Item -Path "$stagingPath\Workstations\*" -Destination $productionPath -Force -Verbose
+    Copy-Item -Path ("{0}\Servers\*" -f $Config.MOFPath) -Destination $Config.PullServerConfigPath -Force -Verbose
+    Copy-Item -Path ("{0}\Workstations\*" -f $Config.MOFPath) -Destination $Config.PullServerConfigPath -Force -Verbose
 }
 
-Function Initialize-DSCConfigurations ($nodeSet)
+function Initialize-DSCConfigurations
 {
+	param
+	(
+		$nodeSet
+	)
+    
     Import-Module ActiveDirectory
-    $MOFPath = $PSScriptRoot + "\mof"
-
-    Write-Host "Please wait while the DSC Configs are built..."
-
-    # Build list of nodes
-    $Nodes = Select-DSCNodes -nodeSet $nodeSet -Verbose
-
-    Switch ($nodeSet)
-    {
-        Servers 
-        { 
-            Remove-Item "$MOFPath\Servers\*" -Recurse
-            Import-Module "$PSScriptRoot\DSCserverConfig.ps1" -Force
-            DSCServerConfig -OutputPath "$PSScriptRoot\mof\Servers" -Verbose -ConfigurationData $Nodes
-        }
-        Workstations 
-        { 
-            Remove-Item "$MOFPath\Workstations\*" -Recurse
-            Import-Module "$PSScriptRoot\DSCWorkstationConfig.ps1" -Force
-            DSCWorkstationConfig -OutputPath "$PSScriptRoot\mof\Workstations" -Verbose -ConfigurationData $Nodes
-        }
-    }
-
-    # Generate checksum files for change tracking
-    New-DscChecksum "$MOFPath" -Verbose
+    $Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
+	
+	Write-Host "Please wait while the DSC Configs are built..."
+	
+	# Build list of nodes
+	$Nodes = Select-DSCNodes -nodeSet $nodeSet -Verbose
+	
+	Switch ($nodeSet)
+	{
+		Servers
+		{
+            Remove-Item ("{0}\Servers\*" -f $Config.MOFPath)  -Recurse
+			Import-Module "$PSScriptRoot\DSCserverConfig.ps1" -Force
+            DSCServerConfig -OutputPath ("{0}\Servers\" -f $Config.MOFPath) -Verbose -ConfigurationData $Nodes
+		}
+		Workstations
+		{
+            Remove-Item ("{0}\Workstations\*" -f $Config.MOFPath) -Recurse
+			Import-Module "$PSScriptRoot\DSCWorkstationConfig.ps1" -Force
+			DSCWorkstationConfig -OutputPath ("{0}\Workstations\" -f $Config.MOFPath)-Verbose -ConfigurationData $Nodes
+		}
+	}
+	
+	# Generate checksum files for change tracking
+	New-DscChecksum $Config.MOFPath -Verbose
 }
 Function Update-PullClients
 {
@@ -71,60 +76,60 @@ Function Update-PullClients
         Invoke-Command -ComputerName $pc -ScriptBlock { Update-DscConfiguration } | Format-Table
     }
 }
-Function Select-DSCNodes
+function Select-DSCNodes
 {
-    [CmdletBinding()]
-    param 
-    (
-        [Parameter(Mandatory = $true)] 
-        [ValidateSet("Servers", "Workstations")]
-        [string]$nodeSet
-    )
-
-    $Config = Import-PowerShellDataFile $PSScriptRoot\config.psd1
-
-    Write-Host $nodeSet selected.
-
-    switch ($nodeSet)
-    {
-        'Servers' { $SearchBase = $Config.ServerSearchBase} 
-        'Workstations' { $SearchBase = $Config.WorkstationSearchBase }
-    }
-
-    $Nodes = Get-ADComputer -Properties MemberOf -SearchBase $SearchBase -Filter "*"
-
-    $ConfigData = @{
-        AllNodes = @(
-            foreach ($Node in $Nodes)
-            {
-                Write-Verbose "Adding Node $Node"
-                $Groups = foreach ($group in $Node.MemberOf) 
-                { 
-                    $strGroup = $group.split(',')[0] 
-                    $strGroup = $strGroup.split('=')[1] 
-                    $strGroup
-                    Get-ADNestedGroups -strGroup $strGroup
-                }
-
-                @{
-                    NodeName                    = $Node.Name;
-                    PSDscAllowPlainTextPassword = $true
-                    Roles                       = $Groups.Where{$_ -like "DSC-*"}
-                }
-            }
-        )
-    }
-
-    return $ConfigData
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('Servers', 'Workstations')]
+		[string]$nodeSet
+	)
+	
+	$Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
+	
+	Write-Host $nodeSet selected.
+	
+	switch ($nodeSet)
+	{
+		'Servers' { $SearchBase = $Config.ServerSearchBase }
+		'Workstations' { $SearchBase = $Config.WorkstationSearchBase }
+	}
+	
+	$Nodes = Get-ADComputer -Properties MemberOf -SearchBase $SearchBase -Filter "*"
+	
+	$ConfigData = @{
+		AllNodes  = @(
+			foreach ($Node in $Nodes)
+			{
+				Write-Verbose "Adding Node $Node"
+				$Groups = foreach ($group in $Node.MemberOf)
+				{
+					$strGroup = $group.split(',')[0]
+					$strGroup = $strGroup.split('=')[1]
+					$strGroup
+					Get-ADNestedGroups -strGroup $strGroup
+				}
+				
+				@{
+					NodeName					 = $Node.Name;
+					PSDscAllowPlainTextPassword  = $true
+					Roles					     = $Groups.Where{ $_ -like "DSC-*" }
+				}
+			}
+		)
+	}
+	
+	return $ConfigData
 }
 function Get-ADNestedGroups ( $strGroup )
 {
-    $CurrentGroupGroups = (Get-ADGroup –Identity $strGroup –Properties MemberOf | Select-Object MemberOf).MemberOf 
-    foreach ($Memgroup in $CurrentGroupGroups) 
+    $NestedGroups = (Get-ADGroup –Identity $strGroup –Properties MemberOf | Select-Object MemberOf).MemberOf 
+    foreach ($ChildGroup in $NestedGroups) 
     { 
-        $strMemGroup = $Memgroup.split(',')[0] 
-        $strMemGroup = $strMemGroup.split('=')[1] 
-        $strMemGroup
-        Get-ADNestedGroups -strGroup $strMemGroup 
+        $MemberGroup = $ChildGroup.split(',')[0] 
+        $MemberGroup = $MemberGroup.split('=')[1] 
+        $MemberGroup
+        Get-ADNestedGroups -strGroup $MemberGroup
     }
 }

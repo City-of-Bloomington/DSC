@@ -1,11 +1,12 @@
-﻿$Config = Import-PowerShellDataFile $PSScriptRoot\config.psd1
-
-[DscLocalConfigurationManager()]
-Configuration LCMPullConfig {
-
+﻿[DscLocalConfigurationManager()]
+Configuration LCMPullConfig 
+{
     param ([string]$ComputerName)
-    Node $ComputerName {
-        Settings {
+    
+    Node $ComputerName 
+    {
+        Settings 
+        {
             RefreshMode = "PULL";
             RebootNodeIfNeeded = $false;
             RefreshFrequencyMins = 30;
@@ -13,12 +14,12 @@ Configuration LCMPullConfig {
             ConfigurationMode = "ApplyAndAutoCorrect";
         }
 
-        ConfigurationRepositoryWeb COB-PullSrv {
-                ServerURL                       = $Config.DSCServer
-                RegistrationKey                 = $Config.RegistrationKey
+        ConfigurationRepositoryWeb COB-PullSrv
+        {
+                ServerURL                       = "http://DSC:8080/PSDSCPullServer.svc"
+                RegistrationKey                 = "990c410f-e849-42f8-8e42-42a8a1d67e6c"
                 ConfigurationNames              = @("$ComputerName")
                 AllowUnsecureConnection         = $true
-        
         }
 
         ReportServerWeb COB-ReportSrv

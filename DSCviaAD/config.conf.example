@@ -1,0 +1,10 @@
+﻿@{
+    DSCServer = "http://<PULLSERVERNAME>:8080/PSDSCPullServer.svc"
+    RegistrationKey = "<GUID>"
+
+    ServerSearchBase = "OU="
+    WorkstationSearchBase = "OU="
+    
+    MOFPath                 = "<path>"
+    PullserverConfigPath    = "C:\Program Files\WindowsPowerShell\DscService\Configuration"
+}
