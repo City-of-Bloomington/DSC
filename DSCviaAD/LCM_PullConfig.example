@@ -1,0 +1,31 @@
+﻿[DscLocalConfigurationManager()]
+Configuration LCMPullConfig 
+{
+    param ([string]$ComputerName)
+    
+    Node $ComputerName 
+    {
+        Settings 
+        {
+            RefreshMode = "PULL";
+            RebootNodeIfNeeded = $false;
+            RefreshFrequencyMins = 30;
+            ConfigurationModeFrequencyMins = 30;
+            ConfigurationMode = "ApplyAndAutoCorrect";
+        }
+
+        ConfigurationRepositoryWeb COB-PullSrv
+        {
+                ServerURL                       = "http://<Server>:8080/PSDSCPullServer.svc"
+                RegistrationKey                 = "<regKey>"
+                ConfigurationNames              = @("$ComputerName")
+                AllowUnsecureConnection         = $true
+        }
+
+        ReportServerWeb COB-ReportSrv
+        {
+            ServerURL               = "http://<Server>:8080/PSDSCPullServer.svc"
+            AllowUnsecureConnection = $true
+        }
+    }
+}
