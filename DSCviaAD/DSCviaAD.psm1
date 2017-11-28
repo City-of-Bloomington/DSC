@@ -10,7 +10,6 @@ Function Configure-LCMRemotely ($ComputerName)
     if (!$ComputerName)
     {
         $NodeData = (Select-DSCNodes -nodeSet Servers)
-
         ForEach ($pc in $NodeData.AllNodes.Where{$_.Roles -like "*"}.NodeName) 
         {
             LCMPullConfig -ComputerName $pc
@@ -33,37 +32,37 @@ Function Add-ConfigurationsToPullServer
 
 function Initialize-DSCConfigurations
 {
-	param
-	(
-		$nodeSet
-	)
+    param
+    (
+        $nodeSet
+    )
     
     Import-Module ActiveDirectory
     $Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
-	
-	Write-Host "Please wait while the DSC Configs are built..."
-	
-	# Build list of nodes
-	$Nodes = Select-DSCNodes -nodeSet $nodeSet -Verbose
-	
-	Switch ($nodeSet)
-	{
-		Servers
-		{
+    
+    Write-Host "Please wait while the DSC Configs are built..."
+    
+    # Build list of nodes
+    $Nodes = Select-DSCNodes -nodeSet $nodeSet
+    
+    Switch ($nodeSet)
+    {
+        Servers
+        {
             Remove-Item ("{0}\Servers\*" -f $Config.MOFPath)  -Recurse
-			Import-Module "$PSScriptRoot\DSCserverConfig.ps1" -Force
+            Import-Module "$PSScriptRoot\DSCserverConfig.ps1" -Force
             DSCServerConfig -OutputPath ("{0}\Servers\" -f $Config.MOFPath) -Verbose -ConfigurationData $Nodes
-		}
-		Workstations
-		{
+        }
+        Workstations
+        {
             Remove-Item ("{0}\Workstations\*" -f $Config.MOFPath) -Recurse
-			Import-Module "$PSScriptRoot\DSCWorkstationConfig.ps1" -Force
-			DSCWorkstationConfig -OutputPath ("{0}\Workstations\" -f $Config.MOFPath)-Verbose -ConfigurationData $Nodes
-		}
-	}
-	
-	# Generate checksum files for change tracking
-	New-DscChecksum $Config.MOFPath -Verbose
+            Import-Module "$PSScriptRoot\DSCWorkstationConfig.ps1" -Force
+            DSCWorkstationConfig -OutputPath ("{0}\Workstations\" -f $Config.MOFPath)-Verbose -ConfigurationData $Nodes
+        }
+    }
+    
+    # Generate checksum files for change tracking
+    New-DscChecksum $Config.MOFPath -Verbose
 }
 Function Update-PullClients
 {
@@ -78,49 +77,49 @@ Function Update-PullClients
 }
 function Select-DSCNodes
 {
-	[CmdletBinding()]
-	param
-	(
-		[Parameter(Mandatory = $true)]
-		[ValidateSet('Servers', 'Workstations')]
-		[string]$nodeSet
-	)
-	
-	$Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
-	
-	Write-Host $nodeSet selected.
-	
-	switch ($nodeSet)
-	{
-		'Servers' { $SearchBase = $Config.ServerSearchBase }
-		'Workstations' { $SearchBase = $Config.WorkstationSearchBase }
-	}
-	
-	$Nodes = Get-ADComputer -Properties MemberOf -SearchBase $SearchBase -Filter "*"
-	
-	$ConfigData = @{
-		AllNodes  = @(
-			foreach ($Node in $Nodes)
-			{
-				Write-Verbose "Adding Node $Node"
-				$Groups = foreach ($group in $Node.MemberOf)
-				{
-					$strGroup = $group.split(',')[0]
-					$strGroup = $strGroup.split('=')[1]
-					$strGroup
-					Get-ADNestedGroups -strGroup $strGroup
-				}
-				
-				@{
-					NodeName					 = $Node.Name;
-					PSDscAllowPlainTextPassword  = $true
-					Roles					     = $Groups.Where{ $_ -like "DSC-*" }
-				}
-			}
-		)
-	}
-	
-	return $ConfigData
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Servers', 'Workstations')]
+        [string]$nodeSet
+    )
+    
+    $Config = Import-PowerShellDataFile $PSScriptRoot\config.conf
+    
+    Write-Host $nodeSet selected.
+    
+    switch ($nodeSet)
+    {
+        'Servers' { $SearchBase = $Config.ServerSearchBase }
+        'Workstations' { $SearchBase = $Config.WorkstationSearchBase }
+    }
+    
+    $Nodes = Get-ADComputer -Properties MemberOf -SearchBase $SearchBase -Filter "*"
+    
+    $ConfigData = @{
+        AllNodes  = @(
+            foreach ($Node in $Nodes)
+            {
+                Write-Verbose "Adding Node $Node"
+                $Groups = foreach ($group in $Node.MemberOf)
+                {
+                    $strGroup = $group.split(',')[0]
+                    $strGroup = $strGroup.split('=')[1]
+                    $strGroup
+                    Get-ADNestedGroups -strGroup $strGroup
+                }
+                
+                @{
+                    NodeName                     = $Node.Name;
+                    PSDscAllowPlainTextPassword  = $true
+                    Roles                         = $Groups.Where{ $_ -like "DSC-*" }
+                }
+            }
+        )
+    }
+    
+    return $ConfigData
 }
 function Get-ADNestedGroups ( $strGroup )
 {

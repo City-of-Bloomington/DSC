@@ -2,6 +2,22 @@
 Set-Location $PSScriptRoot
 Import-Module DSCviaAD
 
+try
+{
+    if (Get-Module -ListAvailable -Name "Write-Menu")
+    {
+        Import-Module Write-Menu
+    }
+    else
+    {
+        Install-Module "Write-Menu" -Scope CurrentUser
+    }
+}
+catch
+{
+    Write-Host "This menu requires the PowerShell module 'Write-Menu' to be installed to function. You can install it via the PSGallery."
+}
+
 Function Show-DSCMenu
 {
     While (1) {
