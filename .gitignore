@@ -6,3 +6,9 @@ DSCViaAD/config.psd1
 DSCViaAD/DSCWorkstationConfig.ps1
 DSCViaAD/DSCServerConfig.ps1
 DscService.lnk
+*.pssproj*
+*.psproj*
+config.conf
+*.suo
+DSCviaAD/LCM_PullConfig.ps1
+Generate-DSCComplianceReport.ps1

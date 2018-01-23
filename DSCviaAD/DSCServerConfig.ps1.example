@@ -2,7 +2,7 @@
 $Config = Import-PowerShellDataFile $PSScriptroot\config.psd1
 
 # quick function just to save some space
-Function RoleContains ([string]$Role)
+Function Role ([string]$Role)
 {
     return $AllNodes.Where{$_.Roles -contains $Role}.NodeName
 }
@@ -16,7 +16,7 @@ Configuration DSCServerConfig
     # ===============================================
     # Generic test resource, just copies a file over
     # ===============================================
-    Node (RoleContains("DSC-TestGroup"))
+    Node (Role("DSC-TestGroup"))
     {
         File FileCopy 
         {
@@ -30,7 +30,7 @@ Configuration DSCServerConfig
     # ============================================================
     # Role for common stuff that every windows server should have
     # ============================================================
-    Node (RoleContains("DSC-CommonWindows"))
+    Node (Role("DSC-CommonWindows"))
     {
         Package InstallZabbixAgent
         {
@@ -53,7 +53,7 @@ Configuration DSCServerConfig
     # ============================================================
     # Role for IIS Webservers
     # ============================================================
-    Node (RoleContains("DSC-IISWebServer"))
+    Node (Role("DSC-IISWebServer"))
     {
         WindowsFeature IIS 
         { 
@@ -105,7 +105,7 @@ Configuration DSCServerConfig
     # =========================
     # Role for Windows Updates
     # =========================
-    Node (RoleContains("DSC-KeepUpdated"))
+    Node (Role("DSC-KeepUpdated"))
     {
         xWindowsUpdateAgent KeepUpdated
         {
@@ -119,7 +119,7 @@ Configuration DSCServerConfig
     # =========================
     # Role for SQL Server 2016
     # =========================
-    Node (RoleContains("DSC-SQLServer2016"))
+    Node (Role("DSC-SQLServer2016"))
     {
         WindowsFeature 'NetFramework45'
         {
@@ -151,7 +151,7 @@ Configuration DSCServerConfig
     # =========================
     # Role for SQL Server 2012
     # =========================
-    Node (RoleContains("DSC-SQLServer2012"))
+    Node (Role("DSC-SQLServer2012"))
     {
         WindowsFeature 'NetFramework45'
         {
